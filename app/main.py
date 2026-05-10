@@ -1,9 +1,9 @@
-import sqlite3
 import os
 from contextlib import asynccontextmanager
 
 
 from fastapi import FastAPI, HTTPException, status
+from psycopg import DatabaseError
 
 from product_service.app.db import get_connection, init_db
 from product_service.app.shemas import CreateProduct
@@ -43,7 +43,8 @@ async def create_product(data: CreateProduct) -> dict[str, int | str | float | d
             cursor = connection.execute(
                 """
                 INSERT INTO products (name, description, price, quantity, owner_user_id)
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s)
+                RETURNING id
                 """,
                 (
                     data.name,
@@ -53,15 +54,15 @@ async def create_product(data: CreateProduct) -> dict[str, int | str | float | d
                     data.owner_user_id,
                 ),
             )
-            connection.commit()
-    except sqlite3.DatabaseError as error:
+            product_id = cursor.fetchone()["id"]
+    except DatabaseError as error:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Could not create product",
         ) from error
 
     return {
-        "id": cursor.lastrowid,
+        "id": product_id,
         "name": data.name,
         "description": data.description,
         "price": data.price,
@@ -87,9 +88,14 @@ async def get_product_id(product_id: int) -> dict:
     with get_connection() as connection:
         row = connection.execute("SELECT id, name, description, price, quantity, owner_user_id " \
                                  "FROM products " \
-                                 "WHERE id = ?", 
+                                 "WHERE id = %s",
                                  (product_id,),
                                  ).fetchone()
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Product {product_id} not found",
+            )
         product = dict(row)
         product["owner"] = await get_user_from_users_service(product["owner_user_id"])
         product["served_by"] = INSTANCE_NAME

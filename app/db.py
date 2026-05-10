@@ -1,42 +1,51 @@
-import sqlite3
 import os
-from pathlib import Path
+
+import psycopg
+from psycopg.rows import dict_row
 
 
-BASE_DIR = Path(__file__).resolve().parent
-DB_PATH = Path(os.getenv("PRODUCTS_DB_PATH", BASE_DIR / "products.db"))
+DATABASE_URL = os.getenv("PRODUCT_DATABASE_URL")
 
 
-def get_connection() -> sqlite3.Connection:
-    connection = sqlite3.connect(DB_PATH)
-    connection.row_factory = sqlite3.Row
-    return connection
+def get_connection() -> psycopg.Connection:
+    if not DATABASE_URL:
+        raise RuntimeError("PRODUCT_DATABASE_URL environment variable is not set")
+    return psycopg.connect(DATABASE_URL, row_factory=dict_row)
 
 
 def init_db() -> None:
-    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with get_connection() as connection:
-        connection.execute(
-            """
-            CREATE TABLE IF NOT EXISTS products (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                description TEXT,
-                price REAL NOT NULL,
-                quantity INTEGER NOT NULL DEFAULT 0,
-                owner_user_id INTEGER NOT NULL
-            )
-            """
-        )
-        columns = {
-            row["name"]
-            for row in connection.execute("PRAGMA table_info(products)").fetchall()
-        }
-        if "owner_user_id" not in columns:
+        connection.execute("SELECT pg_advisory_lock(424242)")
+        try:
             connection.execute(
                 """
-                ALTER TABLE products
-                ADD COLUMN owner_user_id INTEGER NOT NULL DEFAULT 0
+                CREATE TABLE IF NOT EXISTS products (
+                    id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    price DOUBLE PRECISION NOT NULL,
+                    quantity INTEGER NOT NULL DEFAULT 0,
+                    owner_user_id INTEGER NOT NULL
+                )
                 """
             )
-        connection.commit()
+            columns = {
+                row["column_name"]
+                for row in connection.execute(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'products'
+                    """
+                ).fetchall()
+            }
+            if "owner_user_id" not in columns:
+                connection.execute(
+                    """
+                    ALTER TABLE products
+                    ADD COLUMN owner_user_id INTEGER NOT NULL DEFAULT 0
+                    """
+                )
+        finally:
+            connection.execute("SELECT pg_advisory_unlock(424242)")

@@ -1,0 +1,29 @@
+upstream products_service_upstream {
+    least_conn;
+    server ${PRODUCT_SERVICE_1_HOST}:${PRODUCT_SERVICE_PORT};
+    server ${PRODUCT_SERVICE_2_HOST}:${PRODUCT_SERVICE_PORT};
+}
+
+server {
+    listen 8080;
+    server_name _;
+
+    location = /products {
+        return 308 /products/;
+    }
+
+    location /products/ {
+        rewrite ^/products/(.*)$ /$1 break;
+        proxy_pass http://products_service_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Prefix /products;
+    }
+
+    location = /status {
+        proxy_pass http://products_service_upstream/status;
+        proxy_http_version 1.1;
+        proxy_set_header Host $http_host;
+    }
+}

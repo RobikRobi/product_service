@@ -4,9 +4,13 @@ services:
     container_name: product_nginx
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "${PRODUCTS_NGINX_PORT:-8080}:8080"
+    environment:
+      PRODUCT_SERVICE_1_HOST: ${PRODUCT_SERVICE_1_HOST:-product_service_1}
+      PRODUCT_SERVICE_2_HOST: ${PRODUCT_SERVICE_2_HOST:-product_service_2}
+      PRODUCT_SERVICE_PORT: ${PRODUCT_SERVICE_PORT:-8002}
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
     depends_on:
       - product_service_1
       - product_service_2
@@ -19,10 +23,8 @@ services:
     restart: unless-stopped
     environment:
       INSTANCE_NAME: product_service_1
-      USERS_SERVICE_URL: ${USERS_SERVICE_URL}
-      PRODUCTS_DB_PATH: /data/products.db
-    volumes:
-      - products_data:/data
+      USERS_SERVICE_URL: ${USERS_SERVICE_URL:?Set USERS_SERVICE_URL to users nginx URL, for example http://users-server:8080}
+      PRODUCT_DATABASE_URL: ${PRODUCT_DATABASE_URL:?Set PRODUCT_DATABASE_URL to Neon PostgreSQL connection string}
     expose:
       - "8002"
 
@@ -34,12 +36,7 @@ services:
     restart: unless-stopped
     environment:
       INSTANCE_NAME: product_service_2
-      USERS_SERVICE_URL: ${USERS_SERVICE_URL}
-      PRODUCTS_DB_PATH: /data/products.db
-    volumes:
-      - products_data:/data
+      USERS_SERVICE_URL: ${USERS_SERVICE_URL:?Set USERS_SERVICE_URL to users nginx URL, for example http://users-server:8080}
+      PRODUCT_DATABASE_URL: ${PRODUCT_DATABASE_URL:?Set PRODUCT_DATABASE_URL to Neon PostgreSQL connection string}
     expose:
       - "8002"
-
-volumes:
-  products_data:
