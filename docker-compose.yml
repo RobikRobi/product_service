@@ -1,42 +1,14 @@
 services:
-  product_nginx:
-    image: nginx:1.27-alpine
-    container_name: product_nginx
-    restart: unless-stopped
-    ports:
-      - "${PRODUCTS_NGINX_PORT:-8080}:8080"
-    environment:
-      PRODUCT_SERVICE_1_HOST: ${PRODUCT_SERVICE_1_HOST:-product_service_1}
-      PRODUCT_SERVICE_2_HOST: ${PRODUCT_SERVICE_2_HOST:-product_service_2}
-      PRODUCT_SERVICE_PORT: ${PRODUCT_SERVICE_PORT:-8002}
-    volumes:
-      - ./nginx.conf.template:/etc/nginx/templates/default.conf.template:ro
-    depends_on:
-      - product_service_1
-      - product_service_2
-
-  product_service_1:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: product_service_1
-    restart: unless-stopped
-    environment:
-      INSTANCE_NAME: product_service_1
-      USERS_SERVICE_URL: ${USERS_SERVICE_URL:?Set USERS_SERVICE_URL to users nginx URL, for example http://users-server:8080}
-      PRODUCT_DATABASE_URL: ${PRODUCT_DATABASE_URL:?Set PRODUCT_DATABASE_URL to Neon PostgreSQL connection string}
-    expose:
-      - "8002"
-
-  product_service_2:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: product_service_2
-    restart: unless-stopped
-    environment:
-      INSTANCE_NAME: product_service_2
-      USERS_SERVICE_URL: ${USERS_SERVICE_URL:?Set USERS_SERVICE_URL to users nginx URL, for example http://users-server:8080}
-      PRODUCT_DATABASE_URL: ${PRODUCT_DATABASE_URL:?Set PRODUCT_DATABASE_URL to Neon PostgreSQL connection string}
-    expose:
-      - "8002"
+    products_service:
+      image: project_products_service:latest
+      build:
+        context: ./products_service
+      container_name: products_service
+      ports:
+        - "8002:8002"
+      environment:
+        INSTANCE_NAME: products_service
+        USERS_SERVICE_URL: ${USERS_SERVICE_URL:?Set USERS_SERVICE_URL to users nginx URL, for example http://users-server:8080}
+        PRODUCT_DATABASE_URL: ${PRODUCT_DATABASE_URL:?Set PRODUCT_DATABASE_URL to Neon PostgreSQL connection string}
+      depends_on:
+        - users_service
