@@ -12,7 +12,7 @@ from product_service.app.utillits import get_user_from_users_service
 
 
 
-USERS_SERVICE_URL = os.getenv("USERS_SERVICE_URL", "http://127.0.0.1:8001")
+USERS_SERVICE_URL = os.getenv("USERS_SERVICE_URL", "http://0.0.0.0:8001")
 INSTANCE_NAME = os.getenv("INSTANCE_NAME", "products_service")
 
 @asynccontextmanager

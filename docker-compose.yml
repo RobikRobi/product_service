@@ -2,13 +2,12 @@ services:
     products_service:
       image: project_products_service:latest
       build:
-        context: ./products_service
+        context: .
       container_name: products_service
       ports:
         - "8002:8002"
       environment:
         INSTANCE_NAME: products_service
-        USERS_SERVICE_URL: ${USERS_SERVICE_URL:?Set USERS_SERVICE_URL to users nginx URL, for example http://users-server:8080}
-        PRODUCT_DATABASE_URL: ${PRODUCT_DATABASE_URL:?Set PRODUCT_DATABASE_URL to Neon PostgreSQL connection string}
-      depends_on:
-        - users_service
+        USERS_SERVICE_URL: ${USERS_SERVICE_URL}
+        PRODUCT_DATABASE_URL: ${PRODUCT_DATABASE_URL}
+
